@@ -18,8 +18,9 @@ from .model import (
 )
 
 
-# Defaults match the supplied measured model: Hoosier 18.0 x 7.5 10 R25B
-# (Item 43105), see tests/data/hoosier_43105_unitire_model.json.
+# Defaults match the measured model: Hoosier 18.0 x 7.5 10 R25B (Item 43105),
+# full-data UniTire fit, see
+# codex_tiremodle/unitire_output_full/hoosier_43105_unitire_model.json.
 FIELDS = [
     ("name", "Tyre name", "Hoosier 18.0 x 7.5 10 R25B (Item 43105)"),
     ("short_name", "Short name", "R25B"),
@@ -28,12 +29,12 @@ FIELDS = [
     ("angular_inertia_kgm2", "Angular inertia (kg m2)", "0.12"),
     ("tyre_damping_ns_m", "Tyre damping (N s/m)", "750"),
     ("tyre_rate_n_m", "Tyre rate (N/m)", "116106.923"),
-    ("reference_load_n", "Reference load (N)", "810.82"),
+    ("reference_load_n", "Reference load (N)", "815.405"),
     ("pressure_static_psi", "Static pressure (psi)", "12.021"),
     ("pressure_ideal_psi", "Ideal pressure (psi)", "12.021"),
 ]
 AC_TUNING_FIELDS = [
-    ("relaxation_length_m", "Relaxation length (m)", "0.7084406"),
+    ("relaxation_length_m", "Relaxation length (m)", "0.0959457"),
     ("flex", "Tyre flex", "0.00056"),
     ("flex_gain", "Flex gain", "0.0265"),
     ("friction_limit_angle_deg", "Friction limit angle (deg)", "16.0"),
@@ -180,8 +181,8 @@ class DesignerApp(tk.Tk):
             self.vars[key].set(default)
         for key, _, default in AC_TUNING_FIELDS:
             self.vars[key].set(default)
-        defaults = {"lat": ["7.3738", "1.1413", "-5.0", "2.4190", "-0.1324", "0", "0"],
-                    "lon": ["7.9867", "1.1042", "-4.9312", "2.5260", "-0.0122", "0", "0"]}
+        defaults = {"lat": ["7.6494", "1.2348", "-1.2545", "2.4976", "-0.1500", "0", "0"],
+                    "lon": ["6.4897", "1.2612", "-1.8430", "2.7111", "-0.1888", "0", "0"]}
         for prefix, values in defaults.items():
             for (key, _, _), value in zip(AXIS_FIELDS, values):
                 self.vars[f"{prefix}_{key}"].set(value)

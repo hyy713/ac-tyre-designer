@@ -50,7 +50,7 @@ python run.py
 5. **备份目标车辆的整个 `data` 目录**，再把导出文件复制进去。
 6. 使用 Content Manager/CSP 的轮胎调试工具验证不同载荷、胎温和胎压下的表现。
 
-启动时默认填入的是随附实测模型 Hoosier 18.0 x 7.5 10 R25B (Item 43105) 的参数（来自 `tests/data/hoosier_43105_unitire_model.json`），打开后可直接点击“拟合 CSP”查看曲线效果。
+启动时默认填入的是实测 Hoosier 18.0 x 7.5 10 R25B (Item 43105) 全数据拟合模型（`unitire_output_full`）的参数，打开后可直接点击“拟合 CSP”查看曲线效果。
 
 要强制启用 CSP Extended Physics，目标车辆的 `car.ini` 应使用：
 
