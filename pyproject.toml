@@ -1,0 +1,12 @@
+[project]
+name = "ac-csp-tyre-designer"
+version = "0.2.2"
+description = "Magic Formula tyre curve designer and CSP Extended Physics exporter"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.26", "scipy>=1.11", "matplotlib>=3.8"]
+
+[project.scripts]
+ac-csp-tyre-designer = "ac_tyre_designer.app:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

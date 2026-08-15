@@ -1,0 +1,22 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+build/
+dist/
+
+# Local scratch / sandbox data that is not part of the project
+.test_tmp_runtime/
+tmp/
+NUT2024_measured_recovery/
+NUT2024_recovery/
+codex_tiremodle/
+.agents/
+*.mat
+*.pdf
+
+# Pytest temp directories (sandbox-specific litter)
+_pytest_basetemp*/
+_pytest_bt/
+tmp581egh50/
+_t4/

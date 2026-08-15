@@ -1,0 +1,186 @@
+{
+  "name": "Hoosier 18.0 x 7.5 10 R25B (Item 43105)",
+  "source": "FSAE TTC Round 6 MAT files",
+  "rimWidth_in": 7,
+  "created": "2026-06-19 02:24:19",
+  "units": {
+    "F": "N",
+    "M": "N*m",
+    "slipAngle": "rad",
+    "camber": "rad",
+    "pressure": "kPa",
+    "velocity": "kph"
+  },
+  "force": {
+    "type": "steady_unitire_normalized_resultant",
+    "Fz0_N": 810.82,
+    "P0_kPa": 82.88,
+    "V0_kph": 40.31,
+    "mux0": 2.5516655899966727,
+    "muy0": 2.4192891075551293,
+    "muxLoadSlope": 0.05098894488318409,
+    "muyLoadSlope": -0.29377598663739535,
+    "Cx0": 18.556942655764924,
+    "Cy0": 19.458870229394119,
+    "CxLoadSlope": -0.48998059662239224,
+    "CyLoadSlope": 0.17197838930758161,
+    "camberFyPerRad": -0.21135776984778987,
+    "curvatureE": 1.2358553177057949,
+    "muPressureSlope": -0.18844317150787143,
+    "stiffnessPressureSlope": -0.0031514586589180753,
+    "muSpeedSlope": -0.0031830843879971623,
+    "objective": 0.13864273023825452,
+    "maxSamples": 8000
+  },
+  "mz": {
+    "type": "pneumatic_trail_plus_residual",
+    "trail0_m": 0.054592743990447348,
+    "trailDecay": 4.528741871450543,
+    "residualAlpha_m": -0.20620395871325736,
+    "camberMz_m": 0.26037518418310712,
+    "longitudinalTrailLoss": 2.1633136806055266,
+    "objective": 0.12534971074189677,
+    "maxSamples": 8000
+  },
+  "mx": {
+    "type": "overturning_moment_linear_camber_lateral",
+    "camberLever_m": -0.49571591264240378,
+    "lateralForceLever_m": -0.022119831182500063,
+    "alphaLever_m": -0.049392842442232965,
+    "loadOffset_m": -0.030080527975133567,
+    "objective_RMSE_Nm": 31.430879559575356,
+    "identification": "由 TTC 的 MX 通道拟合得到。",
+    "loadedRadius_m": 0.215
+  },
+  "my": {
+    "type": "rolling_resistance_moment",
+    "loadedRadius_m": 0.215,
+    "rr0": 0.015,
+    "rrSpeedSlope": 0.1,
+    "driveTorqueCoupling": 0,
+    "V0_kph": 40.31,
+    "identification": "工程默认值：当前 TTC 文件没有直接的滚动阻力矩 My 测量通道。"
+  },
+  "transient": {
+    "type": "first_order_relaxation_by_travel_distance",
+    "state": [
+      "kappa_eff",
+      "alpha_eff",
+      "gamma_eff"
+    ],
+    "equations": [
+      "sigma_x * dkappa_eff/ds = kappa - kappa_eff",
+      "sigma_y * dalpha_eff/ds = alpha - alpha_eff",
+      "sigma_gamma * dgamma_eff/ds = gamma - gamma_eff"
+    ],
+    "sigmaX0_m": 0.27825968879703927,
+    "sigmaY0_m": 0.70844060206805892,
+    "sigmaGamma0_m": 0.35,
+    "loadSlope": -0.15,
+    "pressureSlope": 0.1,
+    "minSigma_m": 0.03,
+    "maxSigma_m": 1.5,
+    "V0_kph": 40.31,
+    "P0_kPa": 82.88,
+    "identification": "当 TTC 动态时间序列中存在足够激励时，松弛长度由时域力响应误差拟合得到。",
+    "loadedRadius_m": 0.215,
+    "trainingSpeedRange_kph": [
+      5.01,
+      72.73
+    ],
+    "sigmaYFit": {
+      "mode": "lateral",
+      "defaultSigma_m": 0.12432834378537594,
+      "status": "fitted",
+      "samples": 1635,
+      "runFiles": [
+        "B1654run20.mat"
+      ],
+      "objective": 0.16133632920687771,
+      "sigma_m": 0.70844060206805892,
+      "note": "通过一阶松弛模型最小化力时域误差得到。"
+    },
+    "sigmaXFit": {
+      "mode": "longitudinal",
+      "defaultSigma_m": 0.13750463302768082,
+      "status": "fitted",
+      "samples": 49646,
+      "runFiles": [
+        "B1654run35.mat",
+        "B1654run36.mat"
+      ],
+      "objective": 0.021639635604584196,
+      "sigma_m": 0.27825968879703927,
+      "note": "通过一阶松弛模型最小化力时域误差得到。"
+    },
+    "sigmaGammaFit": {
+      "status": "not_fitted",
+      "reason": "当前 TTC 文件中未识别到独立的动态外倾激励段。"
+    }
+  },
+  "identification": {
+    "steadyForce": "Fx/Fy 使用 UniTire 归一化合成滑移力形式，由 TTC 力通道拟合。",
+    "aligningMoment": "Mz 使用气动拖距加残余力矩形式，由 TTC MZ 通道拟合。",
+    "overturningMoment": "Mx 使用外倾、侧向力和载荷耦合项，由 TTC MX 通道拟合。",
+    "rollingMoment": "My 采用滚动阻力矩工程模型；当前数据没有直接 MY 测量通道。",
+    "transient": "瞬态部分采用 UniTire 非稳态思想中的有效滑移状态和松弛长度；sigma_x/sigma_y 从动态段拟合，sigma_gamma 暂用默认值。",
+    "signConvention": "保持 TTC 符号约定：SR 为正时 Fx 为正，SA 为正时 Fy 为负。"
+  },
+  "fitOptions": {
+    "LoadedRadiusM": 0.215,
+    "MakeVisiblePlots": false,
+    "MaxSamples": 8000,
+    "MinLoadN": 80,
+    "MinSpeedKph": 5,
+    "NominalPressureKpa": [],
+    "NominalSpeedKph": [],
+    "OutputDir": "unitire_output",
+    "RandomSeed": 43105,
+    "RimWidth": 7
+  },
+  "trainingSummary": {
+    "samples": 8000,
+    "runs": [
+      "B1654run20.mat",
+      "B1654run21.mat",
+      "B1654run22.mat",
+      "B1654run34.mat",
+      "B1654run35.mat",
+      "B1654run36.mat"
+    ],
+    "FzRange_N": [
+      127.4,
+      1617.31
+    ],
+    "alphaRange_deg": [
+      -13.321,
+      13.044
+    ],
+    "kappaRange": [
+      -0.226,
+      0.128
+    ],
+    "gammaRange_deg": [
+      -4.88,
+      4.795
+    ],
+    "pressureRange_kPa": [
+      53.33,
+      99.32
+    ],
+    "speedRange_kph": [
+      5.01,
+      72.67
+    ]
+  },
+  "metrics": {
+    "Fx_RMSE_N": 448.62430894204772,
+    "Fy_RMSE_N": 236.03541660729525,
+    "Mz_RMSE_Nm": 26.50450873557276,
+    "Mx_RMSE_Nm": 31.856638313602165,
+    "Fx_R2": 0.82310297811943245,
+    "Fy_R2": 0.96392747942914658,
+    "Mz_R2": 0.36139870905447158,
+    "Mx_R2": 0.34103807065349323
+  }
+}
