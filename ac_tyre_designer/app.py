@@ -12,10 +12,9 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 from matplotlib.figure import Figure
 
 from .model import (
-    AligningMomentParams, CSPFit, MagicFormulaAxis, TyreDefinition, aligning_moment,
-    cornering_stiffness_csp, cornering_stiffness_mf, csp_force, export_ac_package,
-    fit_csp, load_definition, load_unitire_definition, magic_formula, pneumatic_trail,
-    save_definition, slip_grid,
+    CSPFit, MagicFormulaAxis, TyreDefinition, cornering_stiffness_csp,
+    cornering_stiffness_mf, csp_force, export_ac_package, fit_csp, load_definition,
+    load_unitire_definition, magic_formula, save_definition, slip_grid,
 )
 
 
@@ -38,15 +37,6 @@ AC_TUNING_FIELDS = [
 AXIS_FIELDS = [("B", "B", "10"), ("C", "C", "1.3"), ("E", "E", "-0.5"),
                ("mu0", "Mu at FZ0", "1.35"), ("load_exp", "Load exponent", "-0.08"),
                ("shift_x", "Horizontal shift", "0"), ("shift_y", "Vertical shift", "0")]
-MZ_FIELDS = [
-    ("trail0_m", "Pneumatic trail at FZ0 (m)", "0.075"),
-    ("trail_decay", "Trail decay (1/rad)", "7.0"),
-    ("trail_load_exp", "Trail load exponent", "-0.10"),
-    ("residual_mu0", "Residual moment coefficient", "0.015"),
-    ("residual_B", "Residual B", "7.0"), ("residual_C", "Residual C", "1.0"),
-    ("residual_E", "Residual E", "0.0"),
-    ("residual_load_exp", "Residual load exponent", "-0.05"),
-]
 
 SPIN_CONFIG = {
     "width_m": (0.05, 1.0, 0.005), "radius_m": (0.05, 1.5, 0.005),
@@ -59,10 +49,6 @@ SPIN_CONFIG = {
     "B": (0.01, 100.0, 0.1), "C": (0.1, 5.0, 0.01), "E": (-5.0, 5.0, 0.01),
     "mu0": (0.05, 5.0, 0.01), "load_exp": (-2.0, 2.0, 0.01),
     "shift_x": (-1.0, 1.0, 0.001), "shift_y": (-1.0, 1.0, 0.001),
-    "trail0_m": (0.0, 0.5, 0.001), "trail_decay": (0.0, 100.0, 0.1),
-    "trail_load_exp": (-2.0, 2.0, 0.01), "residual_mu0": (-1.0, 1.0, 0.001),
-    "residual_B": (0.01, 100.0, 0.1), "residual_C": (0.1, 5.0, 0.01),
-    "residual_E": (-5.0, 5.0, 0.01), "residual_load_exp": (-2.0, 2.0, 0.01),
 }
 
 
@@ -132,7 +118,7 @@ class DesignerApp(tk.Tk):
                 ttk.Entry(controls, textvariable=self.vars[key], width=18).grid(row=row, column=1, sticky="ew", pady=2)
             row += 1
         ttk.Separator(controls).grid(row=row, column=0, columnspan=2, sticky="ew", pady=8); row += 1
-        ttk.Label(controls, text="AC/CSP transient and Mz tuning", font=("Segoe UI", 11, "bold")).grid(row=row, column=0, columnspan=2, sticky="w"); row += 1
+        ttk.Label(controls, text="AC/CSP transient and structural tuning", font=("Segoe UI", 11, "bold")).grid(row=row, column=0, columnspan=2, sticky="w"); row += 1
         for key, label, _ in AC_TUNING_FIELDS:
             self.vars[key] = tk.StringVar()
             ttk.Label(controls, text=label).grid(row=row, column=0, sticky="w", pady=2)
@@ -147,16 +133,9 @@ class DesignerApp(tk.Tk):
                 ttk.Label(controls, text=label).grid(row=row, column=0, sticky="w", pady=2)
                 self._make_spinbox(controls, self.vars[name], key).grid(row=row, column=1, sticky="ew", pady=2)
                 row += 1
-        ttk.Separator(controls).grid(row=row, column=0, columnspan=2, sticky="ew", pady=8); row += 1
-        ttk.Label(controls, text="Aligning moment Mz", font=("Segoe UI", 11, "bold")).grid(row=row, column=0, columnspan=2, sticky="w"); row += 1
-        for key, label, _ in MZ_FIELDS:
-            self.vars[f"mz_{key}"] = tk.StringVar()
-            ttk.Label(controls, text=label).grid(row=row, column=0, sticky="w", pady=2)
-            self._make_spinbox(controls, self.vars[f"mz_{key}"], key).grid(row=row, column=1, sticky="ew", pady=2)
-            row += 1
 
         self.figure = Figure(figsize=(9, 8), dpi=100, constrained_layout=True)
-        self.axes = self.figure.subplots(3, 2)
+        self.axes = self.figure.subplots(2, 2)
         self.canvas = FigureCanvasTkAgg(self.figure, master=chart)
         self.canvas.draw()
         toolbar = NavigationToolbar2Tk(self.canvas, chart, pack_toolbar=False)
@@ -200,13 +179,10 @@ class DesignerApp(tk.Tk):
         for prefix, values in defaults.items():
             for (key, _, _), value in zip(AXIS_FIELDS, values):
                 self.vars[f"{prefix}_{key}"].set(value)
-        for key, _, default in MZ_FIELDS:
-            self.vars[f"mz_{key}"].set(default)
 
     def read_tyre(self) -> TyreDefinition:
         def axis(prefix: str) -> MagicFormulaAxis:
             return MagicFormulaAxis(**{key: float(self.vars[f"{prefix}_{key}"].get()) for key, _, _ in AXIS_FIELDS})
-        aligning = AligningMomentParams(**{key: float(self.vars[f"mz_{key}"].get()) for key, _, _ in MZ_FIELDS})
         return TyreDefinition(
             name=self.vars["name"].get().strip(), short_name=self.vars["short_name"].get().strip(),
             width_m=float(self.vars["width_m"].get()), radius_m=float(self.vars["radius_m"].get()),
@@ -218,7 +194,7 @@ class DesignerApp(tk.Tk):
             relaxation_length_m=float(self.vars["relaxation_length_m"].get()),
             flex=float(self.vars["flex"].get()), flex_gain=float(self.vars["flex_gain"].get()),
             friction_limit_angle_deg=float(self.vars["friction_limit_angle_deg"].get()),
-            lateral=axis("lat"), longitudinal=axis("lon"), aligning=aligning)
+            lateral=axis("lat"), longitudinal=axis("lon"))
 
     def write_tyre(self, tyre: TyreDefinition) -> None:
         for key, _, _ in FIELDS:
@@ -228,8 +204,6 @@ class DesignerApp(tk.Tk):
         for prefix, axis in (("lat", tyre.lateral), ("lon", tyre.longitudinal)):
             for key, _, _ in AXIS_FIELDS:
                 self.vars[f"{prefix}_{key}"].set(str(getattr(axis, key)))
-        for key, _, _ in MZ_FIELDS:
-            self.vars[f"mz_{key}"].set(str(getattr(tyre.aligning, key)))
         self.fit = None
         self.redraw()
 
@@ -262,24 +236,7 @@ class DesignerApp(tk.Tk):
                     ax.plot(loads2, np.maximum(.05, p.mu0 + p.mu1 * (ratios - 1)) * ratios ** (p.load_exp - 1), "--", label=label)
             ax.set_title("Peak friction coefficient vs load"); ax.set_xlabel("Fz (N)"); ax.set_ylabel("Mu"); ax.grid(True, alpha=.3); ax.legend(fontsize=8)
 
-            alpha = slip_grid("lateral")
-            alpha_deg = np.rad2deg(alpha)
             ax = self.axes[1, 1]; ax.clear()
-            for fz in loads:
-                ax.plot(alpha_deg, aligning_moment(alpha, fz, tyre), label=f"{fz:.0f}N")
-            ax.axhline(0, color="black", lw=.7)
-            ax.set_title("Self-aligning torque Mz")
-            ax.set_xlabel("Slip angle (deg)"); ax.set_ylabel("Mz (N m)")
-            ax.grid(True, alpha=.3); ax.legend(fontsize=7, ncol=2)
-
-            ax = self.axes[2, 0]; ax.clear()
-            for fz in loads:
-                ax.plot(alpha_deg, pneumatic_trail(alpha, fz, tyre.reference_load_n, tyre.aligning) * 1000, label=f"{fz:.0f}N")
-            ax.set_title("Pneumatic trail")
-            ax.set_xlabel("Slip angle (deg)"); ax.set_ylabel("Trail (mm)")
-            ax.grid(True, alpha=.3); ax.legend(fontsize=7, ncol=2)
-
-            ax = self.axes[2, 1]; ax.clear()
             stiffness_loads = np.linspace(200.0, 1200.0, 120)
             mf_stiffness = np.array([
                 cornering_stiffness_mf(fz, tyre) for fz in stiffness_loads

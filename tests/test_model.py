@@ -3,8 +3,8 @@ from pathlib import Path
 import numpy as np
 
 from ac_tyre_designer.model import (
-    TyreDefinition, aligning_moment, cornering_stiffness_csp, cornering_stiffness_mf,
-    csp_force, export_ac_package, fit_csp, load_unitire_definition, magic_formula, pneumatic_trail,
+    TyreDefinition, cornering_stiffness_csp, cornering_stiffness_mf,
+    csp_force, export_ac_package, fit_csp, load_unitire_definition, magic_formula,
     render_tyres_ini, validate_tyres_ini,
 )
 
@@ -33,7 +33,7 @@ def test_fit_and_render_contains_csp_keys():
     assert fit.longitudinal.stiffness / 18.0 <= 2.0
 
 
-def test_ac_transient_and_mz_tuning_values_are_exported():
+def test_ac_transient_and_structural_tuning_values_are_exported():
     tyre = TyreDefinition(
         relaxation_length_m=0.5393,
         flex=0.00056,
@@ -67,20 +67,8 @@ def test_import_supplied_measured_unitire_model():
     assert 800.0 < tyre.reference_load_n < 820.0
     assert 100000.0 < tyre.tyre_rate_n_m < 130000.0
     assert np.isclose(tyre.relaxation_length_m, 0.7084406020680589)
-    assert np.isclose(tyre.aligning.trail0_m, 0.05459274399044735)
     assert tyre.lateral.mu0 > 2.0
     assert tyre.longitudinal.mu0 > 2.0
-
-
-def test_aligning_moment_and_trail():
-    tyre = TyreDefinition()
-    alpha = np.deg2rad(np.array([-5.0, 0.0, 5.0]))
-    mz = aligning_moment(alpha, tyre.reference_load_n, tyre)
-    trail = pneumatic_trail(alpha, tyre.reference_load_n, tyre.reference_load_n, tyre.aligning)
-    assert np.isclose(mz[0], -mz[2])
-    assert mz[1] == 0
-    assert trail[1] > trail[0]
-    assert "MZ_TRAIL0_M=" in render_tyres_ini(tyre, fit_csp(tyre))
 
 
 def test_ac_forward_model_is_zero_at_zero_slip():
