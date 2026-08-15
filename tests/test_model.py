@@ -47,6 +47,19 @@ def test_ac_transient_and_structural_tuning_values_are_exported():
     assert "FRICTION_LIMIT_ANGLE=16.000000" in text
 
 
+def test_tyres_ini_parameters_are_annotated():
+    """Every exported parameter block carries a Chinese explanatory comment."""
+    text = render_tyres_ini(TyreDefinition(), fit_csp(TyreDefinition()))
+    for marker in (
+        "; NAME:", "; DY0:", "; DX0:", "; FZ0:", "; LS_EXPY:", "; FALLOFF_LEVEL:",
+        "; CX_MULT:", "; PRESSURE_STATIC:", "; CAMBER_GAIN:", "; COMBINED_FACTOR:",
+        "; RELAXATION_LENGTH:", "; SURFACE_TRANSFER:", "; FRICTION_K:",
+        "wear_curve.lut", "thermal_performance.lut",
+    ):
+        assert marker in text
+    assert "MZ" not in text
+
+
 def test_structural_tyre_values_are_not_derived_from_reference_load():
     tyre = TyreDefinition(
         angular_inertia_kgm2=0.12,

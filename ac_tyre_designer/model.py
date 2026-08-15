@@ -177,8 +177,50 @@ def fit_csp(tyre: TyreDefinition) -> CSPFit:
     return CSPFit(lateral=lateral, longitudinal=longitudinal)
 
 
+#: 设计 JSON 的字段说明（JSON 不支持注释，导出时写入顶层 _notes 键）。
+#: 注意：csp_fit 包含 lateral/longitudinal 两个子对象，字段含义相同。
+_FIELD_NOTES: dict[str, dict[str, str]] = {
+    "说明": "本文件由 AC CSP Tyre Designer 生成，可在工具中“打开设计”重新编辑。单位与 tyres.ini 一致。",
+    "tyre": {
+        "name": "轮胎名称",
+        "short_name": "短名称（游戏内显示）",
+        "width_m": "轮胎宽度（米）",
+        "radius_m": "未加载自由半径（米）",
+        "rim_radius_m": "轮辋半径（米）",
+        "angular_inertia_kgm2": "轮胎转动惯量（kg·m²）",
+        "tyre_damping_ns_m": "轮胎垂向阻尼（N·s/m）",
+        "tyre_rate_n_m": "轮胎垂向刚度（N/m）",
+        "reference_load_n": "参考载荷 FZ0（N）",
+        "pressure_static_psi": "静态胎压（psi）",
+        "pressure_ideal_psi": "理想胎压（psi）",
+        "relaxation_length_m": "松弛长度（米），瞬态响应距离常数",
+        "flex": "胎体侧向柔性系数",
+        "flex_gain": "胎体柔性随载荷的增益",
+        "friction_limit_angle_deg": "摩擦极限角（度）",
+        "lateral": "侧向 Magic Formula：B/C/E 形状系数，mu0 峰值摩擦系数，load_exp 载荷指数，shift_x/shift_y 水平/垂直偏移",
+        "longitudinal": "纵向 Magic Formula（含义同侧向，方向为纵向）",
+    },
+    "csp_fit": {
+        "lateral": "侧向 AC/CSP 反向拟合结果（字段含义见下）",
+        "longitudinal": "纵向 AC/CSP 反向拟合结果（字段含义见下）",
+        "mu0": "峰值摩擦系数基准值（对应 tyres.ini 的 DY0/DX0）",
+        "mu1": "摩擦系数随载荷的线性斜率（DY1/DX1）",
+        "load_exp": "载荷指数（LS_EXPY/LS_EXPX）",
+        "stiffness": "峰值滑移刚度（CX_MULT = stiffness/18）",
+        "falloff_level": "峰值后残余力水平（FALLOFF_LEVEL）",
+        "falloff_speed": "峰值后回落速度（FALLOFF_SPEED）",
+        "rmse": "拟合归一化均方根误差（越小越好）",
+        "r_squared": "拟合决定系数 R²（越接近 1 越好）",
+    },
+}
+
+
 def save_definition(path: Path, tyre: TyreDefinition, fit: CSPFit | None = None) -> None:
-    payload = {"tyre": asdict(tyre), "csp_fit": asdict(fit) if fit else None}
+    payload = {
+        "tyre": asdict(tyre),
+        "csp_fit": asdict(fit) if fit else None,
+        "_notes": _FIELD_NOTES,
+    }
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
@@ -314,53 +356,139 @@ def render_tyres_ini(tyre: TyreDefinition, fit: CSPFit) -> str:
     # fit_axis already converts the editor's mu exponent to AC's force exponent.
     ls_expy = lat.load_exp
     ls_expx = lon.load_exp
-    common = f"""NAME={tyre.name}
+    common = f"""; ===== 轮胎基础信息 =====
+; NAME: 轮胎名称（仅用于识别，可随意修改）
+NAME={tyre.name}
+; SHORT_NAME: 短名称（游戏内显示，最多 4 个字符）
 SHORT_NAME={tyre.short_name[:4].upper()}
+; TYPE_HINT: 轮胎类型提示（SLICK = 光头胎/热熔胎）
 TYPE_HINT=SLICK
+; WIDTH: 轮胎宽度（米）
 WIDTH={tyre.width_m:.6f}
+; RADIUS: 轮胎未加载自由半径（米）
 RADIUS={tyre.radius_m:.6f}
+; RIM_RADIUS: 轮辋半径（米）
 RIM_RADIUS={tyre.rim_radius_m:.6f}
+; ANGULAR_INERTIA: 轮胎转动惯量（kg·m²），决定轮速变化的快慢
 ANGULAR_INERTIA={tyre.angular_inertia_kgm2:.6f}
+; DAMP: 轮胎垂向阻尼（N·s/m）
 DAMP={tyre.tyre_damping_ns_m:.3f}
+; RATE: 轮胎垂向刚度（N/m），由实测载荷-形变数据拟合得到
 RATE={tyre.tyre_rate_n_m:.3f}
+
+; ===== 摩擦系数与载荷特性（由反向拟合得到） =====
+; DY0: 侧向峰值摩擦系数基准值（名义载荷 FZ0 下）
 DY0={lat.mu0:.7f}
+; DY1: 侧向摩擦系数随载荷的线性斜率（mu = DY0 + DY1*(Fz/FZ0-1)）
 DY1={lat.mu1:.7f}
+; DX0: 纵向峰值摩擦系数基准值
 DX0={lon.mu0:.7f}
+; DX1: 纵向摩擦系数随载荷的线性斜率
 DX1={lon.mu1:.7f}
+; FZ0: 参考载荷（N），所有载荷归一化都以它为基准
 FZ0={tyre.reference_load_n:.3f}
+; LS_EXPY: 侧向力随载荷的幂指数（CSP 力公式中的载荷指数）
 LS_EXPY={ls_expy:.7f}
+; LS_EXPX: 纵向力随载荷的幂指数
 LS_EXPX={ls_expx:.7f}
+; DY_REF: 侧向摩擦参考值（CSP 摩擦基准，一般与 DY0 相同）
 DY_REF={lat.mu0:.7f}
+; DX_REF: 纵向摩擦参考值（一般与 DX0 相同）
 DX_REF={lon.mu0:.7f}
+
+; ===== CSP 刷模型形状参数（决定力曲线形状） =====
+; FRICTION_LIMIT_ANGLE: 摩擦极限角（度），超过该侧偏角认为进入完全滑移
 FRICTION_LIMIT_ANGLE={tyre.friction_limit_angle_deg:.6f}
+; XMU: 联合滑移摩擦系数（侧向与纵向联合作用时的摩擦耦合）
 XMU=0.25
+; FALLOFF_LEVEL: 峰值后的残余力水平（0.65~0.98，越大峰值后回落越少）
 FALLOFF_LEVEL={(lat.falloff_level + lon.falloff_level) / 2:.7f}
+; FALLOFF_SPEED: 峰值后力回落的快慢（1~7，越大回落越快）
 FALLOFF_SPEED={(lat.falloff_speed + lon.falloff_speed) / 2:.7f}
+; CX_MULT: 纵向刚度乘子（须 <= 2.0，对应 AC 的纵向刚度系数）
 CX_MULT={lon.stiffness / 18.0:.7f}
+
+; ===== 胎压 =====
+; PRESSURE_STATIC: 静态胎压（psi）
 PRESSURE_STATIC={tyre.pressure_static_psi:.3f}
+; PRESSURE_IDEAL: 理想胎压（psi），在此胎压下性能最佳
 PRESSURE_IDEAL={tyre.pressure_ideal_psi:.3f}
+; PRESSURE_SPRING_GAIN: 胎压变化对垂向刚度的影响增益
 PRESSURE_SPRING_GAIN=8000
+; PRESSURE_FLEX_GAIN: 胎压变化对胎体柔性 FLEX 的影响增益
 PRESSURE_FLEX_GAIN=0.45
+; PRESSURE_RR_GAIN: 胎压变化对滚动阻力的影响增益
 PRESSURE_RR_GAIN=0.55
+; PRESSURE_D_GAIN: 胎压变化对垂向阻尼的影响增益
 PRESSURE_D_GAIN=0.004
+
+; ===== 外倾角 =====
+; CAMBER_GAIN: 外倾角对侧向力的增益
 CAMBER_GAIN=0.10
+; DCAMBER_0/DCAMBER_1: 外倾角磨损多项式系数（外倾角对磨损速度的影响）
 DCAMBER_0=1.0
 DCAMBER_1=-12
+
+; ===== 滚动阻力 =====
+; ROLLING_RESISTANCE_0: 滚动阻力基准值
 ROLLING_RESISTANCE_0=10
+; ROLLING_RESISTANCE_1: 滚动阻力随载荷的系数
 ROLLING_RESISTANCE_1=0.0005
+; ROLLING_RESISTANCE_SLIP: 滑移对滚动阻力的影响系数
 ROLLING_RESISTANCE_SLIP=5000
+
+; ===== 胎体结构与瞬态 =====
+; FLEX: 胎体侧向柔性系数（影响侧偏刚度随载荷的饱和）
 FLEX={tyre.flex:.7f}
+; FLEX_GAIN: 胎体柔性随载荷的增益
 FLEX_GAIN={tyre.flex_gain:.7f}
+; RADIUS_ANGULAR_K: 转速对有效滚动半径的影响系数
 RADIUS_ANGULAR_K=0.02
+; BRAKE_DX_MOD: 制动工况下纵向力的修正系数
 BRAKE_DX_MOD=0.05
+; COMBINED_FACTOR: 联合滑移强度（越大，纵向滑移对侧向力的衰减越强）
 COMBINED_FACTOR=2.0
+; WEAR_CURVE: 磨损曲线文件名（格式：x=磨损量，y=剩余性能百分比，新胎≈100）
 WEAR_CURVE=wear_curve.lut
+; SPEED_SENSITIVITY: 摩擦系数随速度的敏感性（越大，高速时抓地衰减越快）
 SPEED_SENSITIVITY=0.003
+; RELAXATION_LENGTH: 松弛长度（米），瞬态力建立的“记忆距离”，越大响应越慢
 RELAXATION_LENGTH={tyre.relaxation_length_m:.7f}
 """
+    thermal = f"""; ===== 轮胎热力学模型（胎温对性能的影响） =====
+; SURFACE_TRANSFER: 胎面表面与空气的传热系数
+SURFACE_TRANSFER=0.018
+; PATCH_TRANSFER: 胎面与路面的传热系数
+PATCH_TRANSFER=0.00027
+; CORE_TRANSFER: 胎体核心与胎面的传热系数
+CORE_TRANSFER=0.0005
+; INTERNAL_CORE_TRANSFER: 胎体内部核心的传热系数
+INTERNAL_CORE_TRANSFER=0.0035
+; FRICTION_K: 摩擦产热系数（打滑时产生热量）
+FRICTION_K=0.025
+; ROLLING_K: 滚动产热系数
+ROLLING_K=0.20
+; PERFORMANCE_CURVE: 温度性能曲线文件名（格式：x=胎温°C，y=抓地力乘子，1.0=最佳）
+PERFORMANCE_CURVE=thermal_performance.lut
+; GRAIN_GAMMA/GRAIN_GAIN: 起粒（grain）现象模型参数
+GRAIN_GAMMA=1
+GRAIN_GAIN=0.0
+; BLISTER_GAMMA/BLISTER_GAIN: 起泡（blister）现象模型参数
+BLISTER_GAMMA=1
+BLISTER_GAIN=0.0
+; COOL_FACTOR: 冷却系数（越大降温越快）
+COOL_FACTOR=2.0
+; SURFACE_ROLLING_K: 表面滚动摩擦产热系数
+SURFACE_ROLLING_K=0.9
+"""
     return f"""; Generated by AC CSP Tyre Designer
-; CSP Extended Physics is required.
-; Reverse fitting is approximate: validate in-game with CSP tyre debug tools.
+; 需要 CSP Extended Physics 才能正确读取本文件（原版 AC 会忽略部分参数）。
+; 反向拟合为近似结果，请在游戏中用 CSP 轮胎调试工具最终验证。
+; 本文件每个参数均带注释说明其作用。
+; 配套文件说明:
+;   wear_curve.lut          : 磨损曲线。x=磨损量（0=全新），y=剩余性能百分比（新胎≈100）。
+;   thermal_performance.lut : 温度性能曲线。x=胎温(°C)，y=抓地力乘子（1.0=最佳工作温度）。
+;   tyre_design.json        : 设计文件，可重新导入本工具编辑（含全部参数与拟合结果）。
 {_axis_comment('lateral', lat)}
 {_axis_comment('longitudinal', lon)}
 
@@ -377,37 +505,16 @@ USE_LOAD=1
 {common}
 
 [REAR]
+; 后轴目前使用与前轴相同的复合配方（本工具按单复合设计）。
+; 如需前后不同的轮胎，导出后把后胎段替换为另一套参数即可。
 {common}
 
 [THERMAL_FRONT]
-SURFACE_TRANSFER=0.018
-PATCH_TRANSFER=0.00027
-CORE_TRANSFER=0.0005
-INTERNAL_CORE_TRANSFER=0.0035
-FRICTION_K=0.025
-ROLLING_K=0.20
-PERFORMANCE_CURVE=thermal_performance.lut
-GRAIN_GAMMA=1
-GRAIN_GAIN=0.0
-BLISTER_GAMMA=1
-BLISTER_GAIN=0.0
-COOL_FACTOR=2.0
-SURFACE_ROLLING_K=0.9
+{thermal}
 
 [THERMAL_REAR]
-SURFACE_TRANSFER=0.018
-PATCH_TRANSFER=0.00027
-CORE_TRANSFER=0.0005
-INTERNAL_CORE_TRANSFER=0.0035
-FRICTION_K=0.025
-ROLLING_K=0.20
-PERFORMANCE_CURVE=thermal_performance.lut
-GRAIN_GAMMA=1
-GRAIN_GAIN=0.0
-BLISTER_GAMMA=1
-BLISTER_GAIN=0.0
-COOL_FACTOR=2.0
-SURFACE_ROLLING_K=0.9
+; 后轴热力学参数与前轴相同。
+{thermal}
 """
 
 
