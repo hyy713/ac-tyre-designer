@@ -3,9 +3,9 @@ from pathlib import Path
 import numpy as np
 
 from ac_tyre_designer.model import (
-    TyreDefinition, cornering_stiffness_csp, cornering_stiffness_mf,
-    csp_force, export_ac_package, fit_csp, load_unitire_definition, magic_formula,
-    render_tyres_ini, validate_tyres_ini,
+    TyreDefinition, combined_force, cornering_stiffness_csp, cornering_stiffness_mf,
+    csp_force, csp_peak_force, export_ac_package, fit_csp, friction_ellipse,
+    load_unitire_definition, magic_formula, render_tyres_ini, validate_tyres_ini,
 )
 
 
@@ -89,6 +89,54 @@ def test_ac_forward_model_is_zero_at_zero_slip():
     fit = fit_csp(tyre)
     force = csp_force(np.array([0.0]), tyre.reference_load_n, tyre.reference_load_n, fit.lateral, "lateral")
     assert force[0] == 0
+
+
+def test_combined_force_friction_circle():
+    tyre = TyreDefinition()
+    fit = fit_csp(tyre)
+    fz = tyre.reference_load_n
+
+    # zero slip -> zero force
+    fx, fy = combined_force(np.array([0.0]), np.array([0.0]), fz, fz, fit, tyre)
+    assert fx[0] == 0 and fy[0] == 0
+
+    # pure lateral reproduced when kappa = 0
+    alpha = np.deg2rad(np.linspace(-10.0, 10.0, 21))
+    _, fy_c = combined_force(np.zeros_like(alpha), alpha, fz, fz, fit, tyre)
+    assert np.allclose(fy_c, csp_force(alpha, fz, fz, fit.lateral, "lateral"), atol=1e-9)
+
+    # pure longitudinal reproduced when alpha = 0
+    kappa = np.linspace(-0.3, 0.3, 21)
+    fx_c, _ = combined_force(kappa, np.zeros_like(kappa), fz, fz, fit, tyre)
+    assert np.allclose(fx_c, csp_force(kappa, fz, fz, fit.longitudinal, "longitudinal"), atol=1e-9)
+
+    # friction ellipse constraint is never exceeded
+    kg, ag = np.meshgrid(np.linspace(-0.5, 0.5, 31), np.deg2rad(np.linspace(-20.0, 20.0, 31)))
+    fxg, fyg = combined_force(kg.ravel(), ag.ravel(), fz, fz, fit, tyre)
+    mx = csp_peak_force(fit.longitudinal, fz, fz)
+    my = csp_peak_force(fit.lateral, fz, fz)
+    r = np.sqrt((fxg / mx) ** 2 + (fyg / my) ** 2)
+    assert r.max() <= 1.0 + 1e-9
+
+    # combined slip degrades both components vs their pure-slip values
+    fx_c2, fy_c2 = combined_force(np.array([0.2]), np.deg2rad(np.array([8.0])), fz, fz, fit, tyre)
+    fx0 = csp_force(np.array([0.2]), fz, fz, fit.longitudinal, "longitudinal")
+    fy0 = csp_force(np.deg2rad(np.array([8.0])), fz, fz, fit.lateral, "lateral")
+    assert abs(fx_c2[0]) < abs(fx0[0])
+    assert abs(fy_c2[0]) < abs(fy0[0])
+
+    # ellipse geometry: pure-axis intercepts equal mu*Fz (sampling tolerance)
+    fx_e, fy_e = friction_ellipse(fz, fz, fit)
+    assert np.isclose(fx_e.max(), mx, rtol=1e-4)
+    assert np.isclose(fy_e.max(), my, rtol=1e-4)
+
+
+def test_combined_factor_is_exported_and_editable():
+    assert TyreDefinition().combined_factor == 2.0
+    tyre = TyreDefinition(combined_factor=2.24)
+    text = render_tyres_ini(tyre, fit_csp(tyre))
+    assert "COMBINED_FACTOR=2.2400000" in text
+    assert "XMU=0.25" in text
 
 
 def test_cornering_stiffness_matches_magic_formula_origin_slope():

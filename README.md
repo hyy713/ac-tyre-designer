@@ -14,7 +14,7 @@
 - 叠加显示目标 MF 与 CSP 代理曲线，并报告 R²/RMSE
 - 保存/打开 JSON 设计
 - 导出 `tyres.ini`、磨损 LUT、温度性能 LUT 和拟合报告
-- 摩擦圆拟合：`friction_circle.py` 根据导出的 `tyres.ini` 参数生成联合纵-侧向力拟合图（摩擦椭圆、力矢场、模型包络、联合滑移衰减曲线）
+- 摩擦圆（联合纵-侧向力）：GUI 实时显示摩擦圆与联合滑移衰减曲线，可调 `COMBINED_FACTOR` 等参数即时观察；`friction_circle.py` 可对任意 `tyres.ini` 生成 6 联详细拟合图
 
    ```powershell
    python friction_circle.py tyres.ini -o friction_circle_lc0.png

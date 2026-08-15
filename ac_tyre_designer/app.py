@@ -12,9 +12,9 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 from matplotlib.figure import Figure
 
 from .model import (
-    CSPFit, MagicFormulaAxis, TyreDefinition, cornering_stiffness_csp,
-    cornering_stiffness_mf, csp_force, export_ac_package, fit_csp, load_definition,
-    load_unitire_definition, magic_formula, save_definition, slip_grid,
+    CSPFit, MagicFormulaAxis, TyreDefinition, combined_force, cornering_stiffness_csp,
+    cornering_stiffness_mf, csp_force, export_ac_package, fit_csp, friction_ellipse,
+    load_definition, load_unitire_definition, magic_formula, save_definition, slip_grid,
 )
 
 
@@ -37,6 +37,7 @@ AC_TUNING_FIELDS = [
     ("flex", "Tyre flex", "0.00056"),
     ("flex_gain", "Flex gain", "0.0265"),
     ("friction_limit_angle_deg", "Friction limit angle (deg)", "16.0"),
+    ("combined_factor", "Combined slip factor", "2.0"),
 ]
 AXIS_FIELDS = [("B", "B", "10"), ("C", "C", "1.3"), ("E", "E", "-0.5"),
                ("mu0", "Mu at FZ0", "1.35"), ("load_exp", "Load exponent", "-0.08"),
@@ -50,6 +51,7 @@ SPIN_CONFIG = {
     "pressure_static_psi": (1.0, 80.0, 0.5), "pressure_ideal_psi": (1.0, 80.0, 0.5),
     "relaxation_length_m": (0.01, 5.0, 0.01), "flex": (0.00001, 0.01, 0.00001),
     "flex_gain": (0.0, 1.0, 0.001), "friction_limit_angle_deg": (1.0, 30.0, 0.1),
+    "combined_factor": (0.0, 10.0, 0.01),
     "B": (0.01, 100.0, 0.1), "C": (0.1, 5.0, 0.01), "E": (-5.0, 5.0, 0.01),
     "mu0": (0.05, 5.0, 0.01), "load_exp": (-2.0, 2.0, 0.01),
     "shift_x": (-1.0, 1.0, 0.001), "shift_y": (-1.0, 1.0, 0.001),
@@ -139,7 +141,7 @@ class DesignerApp(tk.Tk):
                 row += 1
 
         self.figure = Figure(figsize=(9, 8), dpi=100, constrained_layout=True)
-        self.axes = self.figure.subplots(2, 2)
+        self.axes = self.figure.subplots(3, 2)
         self.canvas = FigureCanvasTkAgg(self.figure, master=chart)
         self.canvas.draw()
         toolbar = NavigationToolbar2Tk(self.canvas, chart, pack_toolbar=False)
@@ -257,6 +259,44 @@ class DesignerApp(tk.Tk):
             ax.set_title("Cornering stiffness vs vertical load")
             ax.set_xlabel("Fz (kN)"); ax.set_ylabel("C-alpha (kN/rad)")
             ax.grid(True, alpha=.3); ax.legend(fontsize=8)
+
+            fz_ref = tyre.reference_load_n
+            ax = self.axes[2, 0]; ax.clear()
+            if self.fit is None:
+                ax.text(0.5, 0.5, "Click Fit CSP to show the friction circle",
+                        ha="center", va="center", transform=ax.transAxes)
+                ax.set_title("Friction circle (combined slip)")
+            else:
+                for mult in (0.6, 1.4):
+                    fx_e, fy_e = friction_ellipse(fz_ref * mult, fz_ref, self.fit)
+                    ax.plot(fx_e, fy_e, color="0.55", lw=1.0, ls="--")
+                fx_e, fy_e = friction_ellipse(fz_ref, fz_ref, self.fit)
+                ax.plot(fx_e, fy_e, color="black", lw=1.6, ls="--", label="Ideal ellipse")
+                kg, ag = np.meshgrid(np.linspace(-0.35, 0.35, 101),
+                                     np.deg2rad(np.linspace(-18, 18, 101)))
+                fxg, fyg = combined_force(kg.ravel(), ag.ravel(), fz_ref, fz_ref, self.fit, tyre)
+                ax.scatter(fxg, fyg, s=2, alpha=.22, color="#2ca02c", label="Model envelope")
+                ax.axhline(0, color="k", lw=.5, alpha=.4); ax.axvline(0, color="k", lw=.5, alpha=.4)
+                ax.set_title(f"Friction circle @ {fz_ref:.0f} N (CF={tyre.combined_factor:.2f})")
+                ax.set_xlabel("Fx (N)"); ax.set_ylabel("Fy (N)")
+                ax.legend(fontsize=7); ax.grid(True, alpha=.3)
+                ax.set_aspect("equal", adjustable="box")
+
+            ax = self.axes[2, 1]; ax.clear()
+            if self.fit is None:
+                ax.text(0.5, 0.5, "Click Fit CSP to show combined-slip curves",
+                        ha="center", va="center", transform=ax.transAxes)
+                ax.set_title("Combined slip: Fy vs alpha")
+            else:
+                alpha_c = slip_grid("lateral")
+                for kappa_v in (0.0, 0.1, 0.2):
+                    _, fy_c = combined_force(np.full_like(alpha_c, kappa_v), alpha_c,
+                                             fz_ref, fz_ref, self.fit, tyre)
+                    ax.plot(np.rad2deg(alpha_c), fy_c, lw=1.6, label=f"kappa = {kappa_v:.1f}")
+                ax.set_title("Combined slip: Fy vs slip angle")
+                ax.set_xlabel("Slip angle (deg)"); ax.set_ylabel("Fy (N)")
+                ax.legend(fontsize=8); ax.grid(True, alpha=.3)
+
             self.canvas.draw_idle()
         except Exception as exc:
             self.status.set(f"Invalid parameter: {exc}")

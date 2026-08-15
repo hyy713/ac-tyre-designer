@@ -49,6 +49,7 @@ class TyreDefinition:
     flex: float = 0.00056
     flex_gain: float = 0.0265
     friction_limit_angle_deg: float = 11.0
+    combined_factor: float = 2.0
     lateral: MagicFormulaAxis = None  # type: ignore[assignment]
     longitudinal: MagicFormulaAxis = None  # type: ignore[assignment]
 
@@ -133,6 +134,60 @@ def cornering_stiffness_csp(load_n: float, ref_load_n: float,
         np.array([-step, step]), load_n, ref_load_n, fit, "lateral"
     )
     return float((force[1] - force[0]) / (2.0 * step))
+
+
+def csp_peak_force(p: CSPAxisFit, load_n: float, ref_load_n: float) -> float:
+    """Peak pure-slip force mu*Fz of the fitted AC brush model."""
+    ratio = max(load_n / ref_load_n, 1e-6)
+    mu = max(0.05, p.mu0 + p.mu1 * (ratio - 1.0)) * ratio ** (p.load_exp - 1.0)
+    return mu * load_n
+
+
+def csp_peak_slip(p: CSPAxisFit, load_n: float, ref_load_n: float) -> float:
+    """Slip value (rad for lateral, ratio for longitudinal) where force peaks."""
+    peak = csp_peak_force(p, load_n, ref_load_n)
+    slip_stiffness = p.stiffness * load_n / (1.0 + AC_FLEX * load_n)
+    return peak / max(slip_stiffness, 1e-6)
+
+
+def combined_force(kappa: np.ndarray, alpha: np.ndarray, load_n: float,
+                   ref_load_n: float, fit: CSPFit,
+                   tyre: TyreDefinition) -> tuple[np.ndarray, np.ndarray]:
+    """AC-style combined slip (friction circle): Fx and Fy under simultaneous
+    longitudinal (kappa) and lateral (alpha, radians) slip.
+
+    Pure-slip forces are mutually degraded by the COMBINED_FACTOR coupling
+    (Fx = Fx0/(1+CF*uy^2), Fy = Fy0/(1+CF*ux^2), ux/uy = normalized slips)
+    and hard-clipped to the friction ellipse
+    (Fx/mx)^2 + (Fy/my)^2 <= 1 with mx = mu_x*Fz, my = mu_y*Fz.
+    """
+    kappa = np.asarray(kappa, dtype=float)
+    alpha = np.asarray(alpha, dtype=float)
+    fx0 = csp_force(kappa, load_n, ref_load_n, fit.longitudinal, "longitudinal")
+    fy0 = csp_force(alpha, load_n, ref_load_n, fit.lateral, "lateral")
+    ux = np.abs(kappa) / max(csp_peak_slip(fit.longitudinal, load_n, ref_load_n), 1e-9)
+    uy = np.abs(alpha) / max(csp_peak_slip(fit.lateral, load_n, ref_load_n), 1e-9)
+    cf = max(tyre.combined_factor, 0.0)
+    fx = fx0 / (1.0 + cf * uy * uy)
+    fy = fy0 / (1.0 + cf * ux * ux)
+    mx = csp_peak_force(fit.longitudinal, load_n, ref_load_n)
+    my = csp_peak_force(fit.lateral, load_n, ref_load_n)
+    r = np.sqrt((fx / mx) ** 2 + (fy / my) ** 2)
+    over = r > 1.0
+    if np.any(over):
+        fx, fy = fx.copy(), fy.copy()
+        fx[over] = fx[over] / r[over]
+        fy[over] = fy[over] / r[over]
+    return fx, fy
+
+
+def friction_ellipse(load_n: float, ref_load_n: float, fit: CSPFit,
+                     n: int = 400) -> tuple[np.ndarray, np.ndarray]:
+    """Ideal friction ellipse boundary points (Fx, Fy) at a given load."""
+    theta = np.linspace(0.0, 2.0 * np.pi, n)
+    mx = csp_peak_force(fit.longitudinal, load_n, ref_load_n)
+    my = csp_peak_force(fit.lateral, load_n, ref_load_n)
+    return mx * np.cos(theta), my * np.sin(theta)
 
 
 def slip_grid(axis: Axis) -> np.ndarray:
@@ -447,7 +502,7 @@ RADIUS_ANGULAR_K=0.02
 ; BRAKE_DX_MOD: 制动工况下纵向力的修正系数
 BRAKE_DX_MOD=0.05
 ; COMBINED_FACTOR: 联合滑移强度（越大，纵向滑移对侧向力的衰减越强）
-COMBINED_FACTOR=2.0
+COMBINED_FACTOR={tyre.combined_factor:.7f}
 ; WEAR_CURVE: 磨损曲线文件名（格式：x=磨损量，y=剩余性能百分比，新胎≈100）
 WEAR_CURVE=wear_curve.lut
 ; SPEED_SENSITIVITY: 摩擦系数随速度的敏感性（越大，高速时抓地衰减越快）
