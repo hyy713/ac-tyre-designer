@@ -18,21 +18,25 @@ from .model import (
 )
 
 
+# Defaults match the supplied measured model: Hoosier 18.0 x 7.5 10 R25B
+# (Item 43105), see tests/data/hoosier_43105_unitire_model.json.
 FIELDS = [
-    ("name", "Tyre name", "Custom CSP Tyre"), ("short_name", "Short name", "CSP"),
+    ("name", "Tyre name", "Hoosier 18.0 x 7.5 10 R25B (Item 43105)"),
+    ("short_name", "Short name", "R25B"),
     ("width_m", "Width (m)", "0.1905"), ("radius_m", "Radius (m)", "0.2286"),
     ("rim_radius_m", "Rim radius (m)", "0.1397"),
     ("angular_inertia_kgm2", "Angular inertia (kg m2)", "0.12"),
     ("tyre_damping_ns_m", "Tyre damping (N s/m)", "750"),
-    ("tyre_rate_n_m", "Tyre rate (N/m)", "50388"),
-    ("reference_load_n", "Reference load (N)", "1200"),
-    ("pressure_static_psi", "Static pressure (psi)", "12"), ("pressure_ideal_psi", "Ideal pressure (psi)", "17"),
+    ("tyre_rate_n_m", "Tyre rate (N/m)", "116106.923"),
+    ("reference_load_n", "Reference load (N)", "810.82"),
+    ("pressure_static_psi", "Static pressure (psi)", "12.021"),
+    ("pressure_ideal_psi", "Ideal pressure (psi)", "12.021"),
 ]
 AC_TUNING_FIELDS = [
-    ("relaxation_length_m", "Relaxation length (m)", "0.50"),
+    ("relaxation_length_m", "Relaxation length (m)", "0.7084406"),
     ("flex", "Tyre flex", "0.00056"),
     ("flex_gain", "Flex gain", "0.0265"),
-    ("friction_limit_angle_deg", "Friction limit angle (deg)", "11.0"),
+    ("friction_limit_angle_deg", "Friction limit angle (deg)", "16.0"),
 ]
 AXIS_FIELDS = [("B", "B", "10"), ("C", "C", "1.3"), ("E", "E", "-0.5"),
                ("mu0", "Mu at FZ0", "1.35"), ("load_exp", "Load exponent", "-0.08"),
@@ -174,8 +178,8 @@ class DesignerApp(tk.Tk):
             self.vars[key].set(default)
         for key, _, default in AC_TUNING_FIELDS:
             self.vars[key].set(default)
-        defaults = {"lat": ["10", "1.30", "-0.5", "1.35", "-0.08", "0", "0"],
-                    "lon": ["12", "1.45", "-0.2", "1.40", "-0.07", "0", "0"]}
+        defaults = {"lat": ["7.3738", "1.1413", "-5.0", "2.4190", "-0.1324", "0", "0"],
+                    "lon": ["7.9867", "1.1042", "-4.9312", "2.5260", "-0.0122", "0", "0"]}
         for prefix, values in defaults.items():
             for (key, _, _), value in zip(AXIS_FIELDS, values):
                 self.vars[f"{prefix}_{key}"].set(value)
